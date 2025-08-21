@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    image: chatgpt-frontend:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:3001
+    depends_on:
+      - backend
+    networks:
+      - chatgpt-network
+
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Dockerfile
+    image: chatgpt-backend:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - MISTRAL_API_URL=http://host.docker.internal:1234
+      - FRONTEND_URL=http://localhost:3000
+    networks:
+      - chatgpt-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  chatgpt-network:
+    driver: bridge

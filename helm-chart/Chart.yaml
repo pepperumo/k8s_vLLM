@@ -1,0 +1,14 @@
+apiVersion: v2
+name: chatgpt-platform
+description: A simple ChatGPT-like platform with Mistral LLM backend
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - chatgpt
+  - llm
+  - mistral
+  - kubernetes
+maintainers:
+  - name: pepperumo
+    email: pepperumo@gmail.com

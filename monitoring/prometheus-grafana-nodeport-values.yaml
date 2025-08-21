@@ -1,0 +1,24 @@
+# Prometheus and Grafana NodePort Configuration
+grafana:
+  adminPassword: admin123
+  persistence:
+    enabled: true
+    size: 5Gi
+  service:
+    type: NodePort
+    nodePort: 30300
+
+prometheus:
+  prometheusSpec:
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 7d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources:
+            requests:
+              storage: 10Gi
+  service:
+    type: NodePort
+    nodePort: 30900

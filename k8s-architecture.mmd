@@ -1,0 +1,92 @@
+graph TB
+    %% External Components
+    User[👤 User] 
+    ExternalAPI[🤖 External vLLM/Mistral API<br/>host.docker.internal:1234]
+    
+    %% Ingress Layer
+    subgraph "Ingress Layer"
+        Ingress[🌐 Ingress<br/>chatgpt-local.dev<br/>nginx.ingress.kubernetes.io/rewrite-target: /]
+    end
+    
+    %% Default Namespace
+    subgraph "Default Namespace"
+        %% Configuration
+        subgraph "Configuration"
+            ConfigMap[⚙️ ConfigMap<br/>chatgpt-platform-config<br/>• MISTRAL_API_URL<br/>• BACKEND_URL<br/>• PORT]
+        end
+        
+        %% Frontend Layer
+        subgraph "Frontend Layer"
+            FrontendSvc[🔗 Service<br/>chatgpt-platform-frontend<br/>ClusterIP:80→3000]
+            FrontendDeploy[📦 Deployment<br/>chatgpt-platform-frontend<br/>React App]
+            subgraph "Frontend Pods"
+                FrontendPod1[🐳 Pod<br/>Frontend Container<br/>Port: 3000<br/>chatgpt-frontend:latest]
+            end
+        end
+        
+        %% Backend Layer  
+        subgraph "Backend Layer"
+            BackendSvc[🔗 Service<br/>chatgpt-platform-backend<br/>ClusterIP:80→3001]
+            BackendDeploy[📦 Deployment<br/>chatgpt-platform-backend<br/>Node.js API]
+            subgraph "Backend Pods"
+                BackendPod1[🐳 Pod<br/>Backend Container<br/>Port: 3001<br/>chatgpt-backend:latest<br/>Health: /health]
+            end
+        end
+    end
+    
+    %% Monitoring Namespace
+    subgraph "Monitoring Namespace (chatgpt-monitoring)"
+        ServiceMonitor[📈 ServiceMonitor<br/>chatgpt-platform-backend-monitor<br/>Scrapes /metrics every 30s]
+        Prometheus[📊 Prometheus<br/>chatgpt-prometheus-kube-pr-prometheus<br/>Port: 9090]
+        Grafana[📊 Grafana Dashboard<br/>chatgpt-prometheus-grafana<br/>Port: 80]
+        AlertManager[🚨 AlertManager<br/>chatgpt-prometheus-kube-pr-alertmanager<br/>Port: 9093]
+        NodeExporter[📊 Node Exporter<br/>prometheus-node-exporter<br/>DaemonSet]
+        KubeStateMetrics[📊 Kube State Metrics<br/>kube-state-metrics<br/>Port: 8080]
+    end
+    
+    %% External Traffic Flow
+    User -->|HTTP Request| Ingress
+    Ingress -->|Route to Frontend| FrontendSvc
+    
+    %% Internal Service Communication
+    FrontendSvc -->|Load Balance| FrontendDeploy
+    FrontendDeploy -->|Manages| FrontendPod1
+    
+    BackendSvc -->|Load Balance| BackendDeploy  
+    BackendDeploy -->|Manages| BackendPod1
+    
+    %% Configuration Injection
+    ConfigMap -.->|REACT_APP_BACKEND_URL| FrontendPod1
+    ConfigMap -.->|MISTRAL_API_URL<br/>PORT| BackendPod1
+    
+    %% API Communication
+    FrontendPod1 -->|HTTP API Calls<br/>REACT_APP_BACKEND_URL| BackendSvc
+    BackendPod1 -->|External API Calls<br/>MISTRAL_API_URL| ExternalAPI
+    
+    %% Monitoring Flow
+    ServiceMonitor -->|Scrapes Metrics<br/>/metrics endpoint| BackendSvc
+    ServiceMonitor -->|Sends Data| Prometheus
+    NodeExporter -->|Node Metrics| Prometheus
+    KubeStateMetrics -->|Cluster Metrics| Prometheus
+    Prometheus -->|Data Source| Grafana
+    Prometheus -->|Alerts| AlertManager
+    
+    %% Health Checks
+    BackendPod1 -.->|Liveness/Readiness<br/>/health| BackendPod1
+    
+    %% Styling - White background with black text for readability
+    classDef userStyle fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000
+    classDef ingressStyle fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000
+    classDef serviceStyle fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000
+    classDef podStyle fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000
+    classDef configStyle fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000
+    classDef monitoringStyle fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000
+    classDef externalStyle fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000
+    
+    class User userStyle
+    class Ingress ingressStyle
+    class FrontendSvc,BackendSvc serviceStyle
+    class FrontendPod1,BackendPod1 podStyle
+    class ConfigMap configStyle
+    class ServiceMonitor,Prometheus,Grafana,AlertManager,NodeExporter,KubeStateMetrics monitoringStyle
+    class ExternalAPI externalStyle
